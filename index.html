@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>Pittsburgh Urban Area</title>
+    <!-- LEAFLET CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+    />
+    <style>
+      body,
+      #map {
+        position: absolute;
+        width: 100%;
+        top: 0;
+        bottom: 0;
+        margin: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, 0.75);
+      }
+
+      .tooltip {
+        color: white;
+        background: #295b97;
+        border: 0;
+        font-size: 1.3em;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- MAP CONTAINER -->
+    <div id="map"></div>
+    <!-- LEAFLET -->
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+    <!-- JQUERY -->
+    <script
+      src="https://code.jquery.com/jquery-3.2.1.min.js"
+      integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+      crossorigin="anonymous"
+    ></script>
+    <!-- CUSTOM -->
+    <script>
+      const options = {
+        center: [40.4406, -79.9959],
+        zoom: 9,
+        minZoom: 9,
+        maxZoom: 16,
+        maxBounds: [
+          [40.4406, -79.9959],
+          [40.4406, -79.9959],
+        ],
+      };
+      const map = L.map("map", options);
+      
+      // MAP PANE
+      map.createPane("labels");
+        map.getPane("labels").style.zIndex = 650;
+        map.getPane("labels").style.pointerEvents = "none";
+
+      // TILELAYER REQUEST
+      const tiles = L.tileLayer(
+        "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/dark_all/{z}/{x}/{y}.png",
+        {
+          attribution:
+            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+          subdomains: "abcd",
+        }
+      ).addTo(map);
+
+      // RICH: I was not able to get the original XYZ labels only tile to load from global.ssl.fastly.net. 
+      // It kept giving me an error, so i added a minimalistic basemap that had as little noise as possible.
+      // It works, but not perfect. If we can figure out how to make it work, I would much rather use the label
+      // only overlay
+
+      $.when(
+        $.getJSON("data/pgh-areasN.json"),
+        $.getJSON("data/pgh-parksN.json"),
+        $.getJSON("data/pgh-bridges2.json")
+      ).done(function (pghAreas, pghParks, pghBridges) {
+        drawMap(pghAreas, pghParks, pghBridges);
+      });
+
+      // LAYER OPTIONS
+      const areaOptions = {
+        fillOpacity: 0.2,
+        fillColor: "#e0ecf9",
+        color: "#E0DD80",
+        weight: 1,
+        opacity: 0.4,
+      };
+
+      const parkOptions = {
+        fillOpacity: 1,
+        fillColor: "#009D06",
+        color: "#A8A8A8",
+        weight: 3,
+        opacity: 0.1,
+      };
+
+      const bridgeOptions = {
+        fillOpacity: 0.1,
+        fillColor: "#e0ecf9",
+        color: "#A8A8A8",
+        weight: 1,
+        opacity: 0.1,
+      };
+
+    
+      function drawMap(pghAreas, pghParks, pghBridges) {
+
+        L.geoJson(pghAreas, {
+          style: areaOptions,
+          onEachFeature: function (feature, layer) {
+            // shortut to variable
+            let tooltip = feature.properties.hood;
+            // bind the tooltip to the layer
+            layer.bindTooltip(tooltip, {
+              sticky: true,
+              className: "tooltip",
+            });
+            // visual affordance on mouseover
+            layer.on("mouseover", function (e) {
+              this.setStyle({
+                fillOpacity: 0.1,
+                fillcolor: "yellow"
+              });
+            });
+            // use existing option to reset the styles on mouseout
+            layer.on("mouseout", function (e) {
+              this.setStyle(areaOptions);
+            });
+          },
+        }).addTo(map);
+
+        L.geoJson(pghParks, {
+          style: parkOptions,
+        }).addTo(map);
+
+        L.geoJson(pghBridges, {
+          style: bridgeOptions,
+        }).addTo(map);
+
+        // RICH: This is the transportation Layer issue I emailed you about. I've spent some time trying to
+        // fiddle with it but no luck. The layer only accepts default styles and not the assigned options.
+        // Any idea on how to make this work so i can use this in the future? Any help/troubleshooting would be 
+        // greatly appreciated!
+      }
+    </script>
+  </body>
+</html>
