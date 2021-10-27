@@ -22,11 +22,22 @@
         background: rgba(0, 0, 0, 0.75);
       }
 
-      .tooltip {
-        color: white;
-        background: #295b97;
+      .tooltip_areas {
+        color: #f0ad4e;
+        background: #000000;
         border: 0;
         font-size: 1.3em;
+      }
+
+      .tooltip_parks {
+        color: #1abe04;
+        background: #000000;
+        border: 0;
+        font-size: 1.3em;
+      }
+
+      .labels {
+        color: aliceblue;
       }
     </style>
   </head>
@@ -46,40 +57,46 @@
     <script>
       const options = {
         center: [40.4406, -79.9959],
-        zoom: 9,
+        zoom: 12,
         minZoom: 9,
         maxZoom: 16,
         maxBounds: [
-          [40.4406, -79.9959],
+          [40.44, -79.995],
           [40.4406, -79.9959],
         ],
       };
       const map = L.map("map", options);
-      
+
       // MAP PANE
       map.createPane("labels");
-        map.getPane("labels").style.zIndex = 650;
-        map.getPane("labels").style.pointerEvents = "none";
+      map.getPane("labels").style.zIndex = 450;
+      map.getPane("labels").style.pointerEvents = "none";
 
       // TILELAYER REQUEST
       const tiles = L.tileLayer(
-        "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/dark_all/{z}/{x}/{y}.png",
+        "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
         {
-          attribution:
-            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
-          subdomains: "abcd",
+          attribution: "©OpenStreetMap, ©CartoDB",
         }
       ).addTo(map);
 
-      // RICH: I was not able to get the original XYZ labels only tile to load from global.ssl.fastly.net. 
+      const labels = L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
+        {
+          attribution: "©OpenStreetMap, ©CartoDB",
+          pane: "labels",
+        }
+      ).addTo(map);
+
+      // RICH: I was not able to get the original XYZ labels only tile to load from global.ssl.fastly.net.
       // It kept giving me an error, so i added a minimalistic basemap that had as little noise as possible.
       // It works, but not perfect. If we can figure out how to make it work, I would much rather use the label
       // only overlay
 
       $.when(
         $.getJSON("data/pgh-areasN.json"),
-        $.getJSON("data/pgh-parksN.json"),
-        $.getJSON("data/pgh-bridges2.json")
+        $.getJSON("data/pgh-parks-4326.json"),
+        $.getJSON("data/pgh-bridges-wgs.json")
       ).done(function (pghAreas, pghParks, pghBridges) {
         drawMap(pghAreas, pghParks, pghBridges);
       });
@@ -88,30 +105,20 @@
       const areaOptions = {
         fillOpacity: 0.2,
         fillColor: "#e0ecf9",
-        color: "#E0DD80",
+        color: "black",
         weight: 1,
-        opacity: 0.4,
+        opacity: 1,
       };
 
       const parkOptions = {
         fillOpacity: 1,
         fillColor: "#009D06",
-        color: "#A8A8A8",
-        weight: 3,
-        opacity: 0.1,
+        color: "#e0ecf9",
+        weight: 0.2,
+        opacity: 1,
       };
 
-      const bridgeOptions = {
-        fillOpacity: 0.1,
-        fillColor: "#e0ecf9",
-        color: "#A8A8A8",
-        weight: 1,
-        opacity: 0.1,
-      };
-
-    
       function drawMap(pghAreas, pghParks, pghBridges) {
-
         L.geoJson(pghAreas, {
           style: areaOptions,
           onEachFeature: function (feature, layer) {
@@ -120,13 +127,12 @@
             // bind the tooltip to the layer
             layer.bindTooltip(tooltip, {
               sticky: true,
-              className: "tooltip",
+              className: "tooltip_areas",
             });
             // visual affordance on mouseover
             layer.on("mouseover", function (e) {
               this.setStyle({
                 fillOpacity: 0.1,
-                fillcolor: "yellow"
               });
             });
             // use existing option to reset the styles on mouseout
@@ -138,15 +144,40 @@
 
         L.geoJson(pghParks, {
           style: parkOptions,
+          onEachFeature: function (feature, layer) {
+            // shortut to variable
+            let tooltip = feature.properties.origpkname;
+            // bind the tooltip to the layer
+            layer.bindTooltip(tooltip, {
+              sticky: true,
+              className: "tooltip_parks",
+            });
+            // visual affordance on mouseover
+            layer.on("mouseover", function (e) {
+              this.setStyle({
+                fillOpacity: 0.1,
+              });
+            });
+            // use existing option to reset the styles on mouseout
+            layer.on("mouseout", function (e) {
+              this.setStyle(parkOptions);
+            });
+          },
         }).addTo(map);
 
         L.geoJson(pghBridges, {
-          style: bridgeOptions,
+          pointToLayer: function (data, ll) {
+            return L.circleMarker(ll, {
+              color: "#f0ad4e",
+              radius: 0.09,
+              fillOpacity: 0.5,
+            });
+          },
         }).addTo(map);
 
         // RICH: This is the transportation Layer issue I emailed you about. I've spent some time trying to
         // fiddle with it but no luck. The layer only accepts default styles and not the assigned options.
-        // Any idea on how to make this work so i can use this in the future? Any help/troubleshooting would be 
+        // Any idea on how to make this work so i can use this in the future? Any help/troubleshooting would be
         // greatly appreciated!
       }
     </script>
